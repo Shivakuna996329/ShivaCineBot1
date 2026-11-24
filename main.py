@@ -20,10 +20,7 @@ def save_files():
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     buttons = [[InlineKeyboardButton("📢 Join Channel", url=INVITE_LINK)]]
-    await update.message.reply_text(
-        "Hi Mama! Welcome! 👋\nFile kavali ante peru type cheyyi.",
-        reply_markup=InlineKeyboardMarkup(buttons)
-    )
+    await update.message.reply_text("Hi Mama! Welcome! 👋\nFile kavali ante peru type cheyyi.", reply_markup=InlineKeyboardMarkup(buttons))
 
 async def check_join(user_id, context):
     try:
@@ -32,7 +29,6 @@ async def check_join(user_id, context):
     except:
         return False
 
-# BOT KI FILE PAMPITHE AUTO SAVE AVUTHUNDI
 async def auto_save_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.from_user.id != ADMIN_ID:
         return
@@ -44,7 +40,6 @@ async def auto_save_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
         file_id = update.message.video.file_id
     elif update.message.photo:
         file_id = update.message.photo[-1].file_id
-
     if file_id and name:
         FILES[name] = file_id
         save_files()
@@ -56,10 +51,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.lower().strip()
     user_id = update.message.from_user.id
     if not await check_join(user_id, context):
-        await update.message.reply_text(
-            "Mundhu Channel lo Join Avvandi mama 👇",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("📢 Join Channel", url=INVITE_LINK)]])
-        )
+        await update.message.reply_text("Mundhu Channel lo Join Avvandi mama 👇", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("📢 Join Channel", url=INVITE_LINK)]]))
         return
     if text in FILES:
         sent = await update.message.reply_document(FILES[text], caption="Nee File Ready! 10 min lo delete avuthundi.")
@@ -81,6 +73,5 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("stats", stats))
     app.add_handler(MessageHandler(filters.Document.ALL | filters.VIDEO | filters.PHOTO, auto_save_file))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-
     print("Bot Running...")
     app.run_polling()
