@@ -1,103 +1,93 @@
-import os, json, telebot
-from telebot import types
-from flask import Flask
-from threading import Thread
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+import asyncio, json, os
 
-BOT_TOKEN = "9024688197:AAFtkM59aNK-hE1lgokBPmFA2vL56qig1t4"
-bot = telebot.TeleBot(BOT_TOKEN)
-app = Flask(__name__)
-
+TOKEN = "9024688197:AAEpOE7gcixRAfNI68LKdqy0o2Sx9wcBVk0"
 CHANNEL_ID = -1004462126560
-MOVIES_FILE = "movies.json"
+INVITE_LINK = "https://t.me/+WjDfE5AE888xNDQ1"
+ADMIN_ID = 870250861
 
-def load_movies():
-    if os.path.exists(MOVIES_FILE):
-        with open(MOVIES_FILE, "r") as f:
-            return json.load(f)
-    return {}
+# File names anni ikkada save avuthayi
+FILE_DB = "files.json"
+if os.path.exists(FILE_DB):
+    with open(FILE_DB, "r") as f:
+        FILES = json.load(f)
+else:
+    FILES = {}
 
-def save_movies(data):
-    with open(MOVIES_FILE, "w") as f:
-        json.dump(data, f)
+def save_files():
+    with open(FILE_DB, "w") as f:
+        json.dump(FILES, f)
 
-MOVIES = load_movies()
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    buttons = [
+        [InlineKeyboardButton("📢 Join Channel", url=INVITE_LINK)],
+    ]
+    await update.message.reply_text(
+        "Hi Mama! Welcome! 👋\nFile kavali ante peru type cheyyi.",
+        reply_markup=InlineKeyboardMarkup(buttons)
+    )
 
-@app.route('/')
-def home():
-    return "ShivaCineBot is Live!"
+async def check_join(user_id, context):
+    try:
+        member = await context.bot.get_chat_member(CHANNEL_ID, user_id)
+        return member.status in ["member", "administrator", "creator"]
+    except:
+        return False
 
-@bot.channel_post_handler(content_types=['video', 'document', 'photo'])
-def learn(post):
-    name = ""
-    if post.document:
-        name = post.document.file_name or ""
-    if not name and post.video:
-        name = post.video.file_name or ""
-    if not name:
-        name = post.caption or ""
-    name = name.lower().strip()
-    if name:
-        MOVIES[name] = post.message_id
-        save_movies(MOVIES)
-
-@bot.message_handler(commands=['start'])
-def start(message):
-    bot.reply_to(message, "Namaste Ra Mama! 🔥\nMovie peru pampu!")
-
-@bot.message_handler(commands=['clear'])
-def clear(message):
-    global MOVIES
-    MOVIES = {}
-    save_movies(MOVIES)
-    bot.reply_to(message, "Clear chesesanu mama!")
-
-@bot.message_handler(commands=['list'])
-def list_movies(message):
-    if not MOVIES:
-        bot.reply_to(message, "Naku emi gurthu ledhu mama! Channel lo movie forward cheyyi!")
+# ✅ AUTO SAVE - Idi kottha feature mama!
+async def auto_save_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.message.from_user.id != ADMIN_ID:
         return
-    text = "Naku gurthu unnavi:\n\n"
-    for n in MOVIES.keys():
-        text += f"- {n}\n"
-    bot.reply_to(message, text)
-
-@bot.message_handler(func=lambda m: True)
-def all_movies(message):
-    movie = message.text.lower().strip()
-    if movie.startswith('/'):
-        return
-    found = []
-    for name, msg_id in MOVIES.items():
-        if movie in name:
-            found.append((name, msg_id))
     
-    if not found:
-        bot.reply_to(message, "Movie dorakaledhu mama... 🔍")
-        return
-
-    if len(found) == 1:
-        bot.reply_to(message, "Dorikindhi mama! Pampisthunnanu... 📥")
-        bot.forward_message(message.chat.id, CHANNEL_ID, found[0][1])
-        return
-
-    markup = types.InlineKeyboardMarkup()
-    for name, msg_id in found:
-        short = name[:45]
-        btn = types.InlineKeyboardButton(text=short, callback_data=f"get_{msg_id}")
-        markup.add(btn)
+    # Caption lo peru lekapothe File ID matrame isthundi
+    name = (update.message.caption or "").lower().strip()
     
-    bot.reply_to(message, f"{movie} - Ki {len(found)} files dorikayi mama! Edhi kavalo click cheyyi 👇", reply_markup=markup)
+    file_id = None
+    if update.message.document:
+        file_id = update.message.document.file_id
+    elif update.message.video:
+        file_id = update.message.video.file_id
+    elif update.message.photo:
+        file_id = update.message.photo[-1].file_id
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith('get_'))
-def send_file(call):
-    msg_id = int(call.data.replace('get_', ''))
-    bot.send_message(call.message.chat.id, "Pampisthunnanu mama... 📥")
-    bot.forward_message(call.message.chat.id, CHANNEL_ID, msg_id)
+    if file_id and name:
+        FILES[name] = file_id
+        save_files()
+        await update.message.reply_text(f"✅ Save Ayipoyindhi mama!\n\nPeru: `{name}`\nIppudu user `{name}` ani type chesthe file vasthundi.", parse_mode="Markdown")
+    elif file_id:
+        await update.message.reply_text(f"File ID: `{file_id}`\n\nPeru tho pampithe auto save avuthundi mama. Caption lo peru rayi.", parse_mode="Markdown")
 
-def run_flask():
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text.lower().strip()
+    user_id = update.message.from_user.id
 
-if __name__ == "__main__":
-    Thread(target=run_flask).start()
-    bot.infinity_polling()
+    if not await check_join(user_id, context):
+        await update.message.reply_text(
+            "Mundhu Channel lo Join Avvandi mama 👇",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("📢 Join Channel", url=INVITE_LINK)]])
+        )
+        return
+
+    if text in FILES:
+        sent = await update.message.reply_document(FILES[text], caption="Nee File Ready! 10 min lo delete avuthundi.")
+        await asyncio.sleep(600)
+        try:
+            await sent.delete()
+        except:
+            pass
+    else:
+        await update.message.reply_text("Ee peru tho file ledu mama.")
+
+async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.message.from_user.id == ADMIN_ID:
+        await update.message.reply_text(f"Total Files: {len(FILES)}\nFiles: {', '.join(FILES.keys())}")
+
+app = Application.builder().token(TOKEN).build()
+app.add_handler(CommandHandler("start", start))
+app.add_handler(CommandHandler("stats", stats))
+app.add_handler(MessageHandler(filters.Document.ALL | filters.VIDEO | filters.PHOTO, auto_save_file))
+app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+
+print("Bot Running...")
+app.run_polling()
