@@ -5,9 +5,8 @@ import asyncio, json, os
 TOKEN = "9024688197:AAEpOE7gcixRAfNI68LKdqy0o2Sx9wcBVk0"
 CHANNEL_ID = -1004462126560
 INVITE_LINK = "https://t.me/+WjDfE5AE888xNDQ1"
-ADMIN_ID = 870250861
+ADMIN_ID = 870250861  # Ikkada nee ID pettu
 
-# File names anni ikkada save avuthayi
 FILE_DB = "files.json"
 if os.path.exists(FILE_DB):
     with open(FILE_DB, "r") as f:
@@ -20,9 +19,7 @@ def save_files():
         json.dump(FILES, f)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    buttons = [
-        [InlineKeyboardButton("📢 Join Channel", url=INVITE_LINK)],
-    ]
+    buttons = [[InlineKeyboardButton("📢 Join Channel", url=INVITE_LINK)]]
     await update.message.reply_text(
         "Hi Mama! Welcome! 👋\nFile kavali ante peru type cheyyi.",
         reply_markup=InlineKeyboardMarkup(buttons)
@@ -35,14 +32,11 @@ async def check_join(user_id, context):
     except:
         return False
 
-# ✅ AUTO SAVE - Idi kottha feature mama!
+# BOT KI FILE PAMPITHE AUTO SAVE AVUTHUNDI
 async def auto_save_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.from_user.id != ADMIN_ID:
         return
-    
-    # Caption lo peru lekapothe File ID matrame isthundi
     name = (update.message.caption or "").lower().strip()
-    
     file_id = None
     if update.message.document:
         file_id = update.message.document.file_id
@@ -54,21 +48,19 @@ async def auto_save_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if file_id and name:
         FILES[name] = file_id
         save_files()
-        await update.message.reply_text(f"✅ Save Ayipoyindhi mama!\n\nPeru: `{name}`\nIppudu user `{name}` ani type chesthe file vasthundi.", parse_mode="Markdown")
+        await update.message.reply_text(f"✅ Save Ayipoyindhi mama!\nPeru: `{name}`", parse_mode="Markdown")
     elif file_id:
-        await update.message.reply_text(f"File ID: `{file_id}`\n\nPeru tho pampithe auto save avuthundi mama. Caption lo peru rayi.", parse_mode="Markdown")
+        await update.message.reply_text("Caption lo peru rayi mama, appude save avuthundi.")
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.lower().strip()
     user_id = update.message.from_user.id
-
     if not await check_join(user_id, context):
         await update.message.reply_text(
             "Mundhu Channel lo Join Avvandi mama 👇",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("📢 Join Channel", url=INVITE_LINK)]])
         )
         return
-
     if text in FILES:
         sent = await update.message.reply_document(FILES[text], caption="Nee File Ready! 10 min lo delete avuthundi.")
         await asyncio.sleep(600)
@@ -81,7 +73,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.from_user.id == ADMIN_ID:
-        await update.message.reply_text(f"Total Files: {len(FILES)}\nFiles: {', '.join(FILES.keys())}")
+        await update.message.reply_text(f"Total Files: {len(FILES)}")
 
 app = Application.builder().token(TOKEN).build()
 app.add_handler(CommandHandler("start", start))
