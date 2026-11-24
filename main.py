@@ -6,7 +6,7 @@ BOT_TOKEN = "9024688197:AAFtkM59aNK-hE1lgokBPmFA2vL56qig1t4"
 bot = telebot.TeleBot(BOT_TOKEN)
 app = Flask(__name__)
 
-CHANNEL_ID = -1003758874620
+CHANNEL_ID = -1004462126560
 MOVIES_FILE = "movies.json"
 
 def load_movies():
@@ -24,13 +24,12 @@ MOVIES = load_movies()
 def home():
     return "ShivaCineBot is Live!"
 
-# Bot - File Peru nundi Movie Peru teesukuntundi
-@bot.channel_post_handler(content_types=['video', 'document'])
-def learn_from_channel(post):
+@bot.channel_post_handler(content_types=['video', 'document', 'photo'])
+def learn(post):
     name = ""
     if post.document:
         name = post.document.file_name or ""
-    elif post.video:
+    if not name and post.video:
         name = post.video.file_name or ""
     if not name:
         name = post.caption or ""
@@ -38,22 +37,40 @@ def learn_from_channel(post):
     if name:
         MOVIES[name] = post.message_id
         save_movies(MOVIES)
-        print(f"Learned: {name}")
 
 @bot.message_handler(commands=['start'])
 def start(message):
     bot.reply_to(message, "Namaste Ra Mama! 🔥\nMovie peru pampu!")
 
+@bot.message_handler(commands=['clear'])
+def clear(message):
+    global MOVIES
+    MOVIES = {}
+    save_movies(MOVIES)
+    bot.reply_to(message, "Clear chesesanu mama!")
+
+@bot.message_handler(commands=['list'])
+def list_movies(message):
+    if not MOVIES:
+        bot.reply_to(message, "Naku emi gurthu ledhu mama! Channel lo movie forward cheyyi!")
+        return
+    text = "Naku gurthu unnavi:\n\n"
+    for n in MOVIES.keys():
+        text += f"- {n}\n"
+    bot.reply_to(message, text)
+
 @bot.message_handler(func=lambda m: True)
 def all_movies(message):
     movie = message.text.lower().strip()
     for name, msg_id in MOVIES.items():
-        # User Kalki ante - File lo Kalki unte chalu
         if movie in name:
-            bot.reply_to(message, f"Super! Dorikindhi Ra Mama! 🔥\nFile pampisthunnanu... 📥")
-            bot.copy_message(message.chat.id, CHANNEL_ID, msg_id)
+            bot.reply_to(message, "Dorikindhi mama! Pampisthunnanu... 📥")
+            try:
+                bot.forward_message(message.chat.id, CHANNEL_ID, msg_id)
+            except Exception as e:
+                bot.reply_to(message, f"Error: {e}")
             return
-    bot.reply_to(message, "Movie dorakaledhu mama... 🔍")
+    bot.reply_to(message, "Movie dorakaledhu mama...")
 
 def run_flask():
     port = int(os.environ.get("PORT", 10000))
