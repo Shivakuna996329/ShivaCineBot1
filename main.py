@@ -1,4 +1,5 @@
 import os, json, telebot
+from telebot import types
 from flask import Flask
 from threading import Thread
 
@@ -14,6 +15,7 @@ def load_movies():
         with open(MOVIES_FILE, "r") as f:
             return json.load(f)
     return {}
+
 def save_movies(data):
     with open(MOVIES_FILE, "w") as f:
         json.dump(data, f)
@@ -62,15 +64,35 @@ def list_movies(message):
 @bot.message_handler(func=lambda m: True)
 def all_movies(message):
     movie = message.text.lower().strip()
+    if movie.startswith('/'):
+        return
+    found = []
     for name, msg_id in MOVIES.items():
         if movie in name:
-            bot.reply_to(message, "Dorikindhi mama! Pampisthunnanu... 📥")
-            try:
-                bot.forward_message(message.chat.id, CHANNEL_ID, msg_id)
-            except Exception as e:
-                bot.reply_to(message, f"Error: {e}")
-            return
-    bot.reply_to(message, "Movie dorakaledhu mama...")
+            found.append((name, msg_id))
+    
+    if not found:
+        bot.reply_to(message, "Movie dorakaledhu mama... 🔍")
+        return
+
+    if len(found) == 1:
+        bot.reply_to(message, "Dorikindhi mama! Pampisthunnanu... 📥")
+        bot.forward_message(message.chat.id, CHANNEL_ID, found[0][1])
+        return
+
+    markup = types.InlineKeyboardMarkup()
+    for name, msg_id in found:
+        short = name[:45]
+        btn = types.InlineKeyboardButton(text=short, callback_data=f"get_{msg_id}")
+        markup.add(btn)
+    
+    bot.reply_to(message, f"{movie} - Ki {len(found)} files dorikayi mama! Edhi kavalo click cheyyi 👇", reply_markup=markup)
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('get_'))
+def send_file(call):
+    msg_id = int(call.data.replace('get_', ''))
+    bot.send_message(call.message.chat.id, "Pampisthunnanu mama... 📥")
+    bot.forward_message(call.message.chat.id, CHANNEL_ID, msg_id)
 
 def run_flask():
     port = int(os.environ.get("PORT", 10000))
