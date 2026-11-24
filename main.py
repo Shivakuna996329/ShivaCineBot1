@@ -1,42 +1,59 @@
-import os
-import telebot
+import os, json, telebot
 from flask import Flask
 from threading import Thread
 
-# Kottha Token - Ikkada Veyyi - Leda Render lo Env lo pettu
 BOT_TOKEN = "9024688197:AAFtkM59aNK-hE1lgokBPmFA2vL56qig1t4"
-
 bot = telebot.TeleBot(BOT_TOKEN)
 app = Flask(__name__)
 
-# --- IKKADA MOVIE LINKS VEYYI MAMA ---
-# Channel lo Post paina Right Click > Copy Link chesi ikkada veyyi
-MOVIES = {
-    "kalki": "https://t.me/c/3758874620/9004",
-    "kalki 2898": "https://t.me/shivacinemas/.../Kalki_Post_Link",
-    "pushpa": "https://t.me/shivacinemas/.../Pushpa_Post_Link",
-}
+CHANNEL_ID = -1003758874620
+MOVIES_FILE = "movies.json"
+
+def load_movies():
+    if os.path.exists(MOVIES_FILE):
+        with open(MOVIES_FILE, "r") as f:
+            return json.load(f)
+    return {}
+def save_movies(data):
+    with open(MOVIES_FILE, "w") as f:
+        json.dump(data, f)
+
+MOVIES = load_movies()
 
 @app.route('/')
 def home():
     return "ShivaCineBot is Live!"
 
+# Bot - File Peru nundi Movie Peru teesukuntundi
+@bot.channel_post_handler(content_types=['video', 'document'])
+def learn_from_channel(post):
+    name = ""
+    if post.document:
+        name = post.document.file_name or ""
+    elif post.video:
+        name = post.video.file_name or ""
+    if not name:
+        name = post.caption or ""
+    name = name.lower().strip()
+    if name:
+        MOVIES[name] = post.message_id
+        save_movies(MOVIES)
+        print(f"Learned: {name}")
+
 @bot.message_handler(commands=['start'])
 def start(message):
-    bot.reply_to(message, "Namaste Ra Mama! 🔥\nWelcome to ShivaCineBot!\n\nMovie peru pampu, nenu link isthanu!")
+    bot.reply_to(message, "Namaste Ra Mama! 🔥\nMovie peru pampu!")
 
 @bot.message_handler(func=lambda m: True)
 def all_movies(message):
     movie = message.text.lower().strip()
-
-    # 1. Movie mana list lo unte - Direct Link pampisthundi
-    for name, link in MOVIES.items():
-        if name in movie:
-            bot.reply_to(message, f"Super! Dorikindhi Ra Mama! 🔥\n\nMovie: {message.text}\n\nLink: {link}\n\nEnjoy Mama! 🍿")
+    for name, msg_id in MOVIES.items():
+        # User Kalki ante - File lo Kalki unte chalu
+        if movie in name:
+            bot.reply_to(message, f"Super! Dorikindhi Ra Mama! 🔥\nFile pampisthunnanu... 📥")
+            bot.copy_message(message.chat.id, CHANNEL_ID, msg_id)
             return
-
-    # 2. Lekapothe - Wait ani chepthundi
-    bot.reply_to(message, f"Super! Nuvvu adigina movie: {message.text}\n\nLink kosam konchem wait cheyyi mama, nenu velthanu... 🔍\n\nEe movie maa daggara ledu, admin ki cheppanu!")
+    bot.reply_to(message, "Movie dorakaledhu mama... 🔍")
 
 def run_flask():
     port = int(os.environ.get("PORT", 10000))
@@ -44,5 +61,4 @@ def run_flask():
 
 if __name__ == "__main__":
     Thread(target=run_flask).start()
-    print("Bot Started...")
     bot.infinity_polling()
